@@ -150,7 +150,7 @@ This application processes and analyzes public data from IBAMA environmental vio
 - Git
 - API Keys (optional, for AI):
   - [Groq API Key](https://console.groq.com/) (free)
-  - [Google AI API Key](https://ai.google.dev/) (free)
+  - [Google AI API Key](https://ai.google.dev/) (paid)
 
 #### **Steps:**
 ```bash
