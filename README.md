@@ -150,7 +150,7 @@ Este aplicativo processa e analisa dados públicos de autos de infração do IBA
 - Git
 - Chaves de API (opcional, para IA):
   - [Groq API Key](https://console.groq.com/) (gratuita)
-  - [Google AI API Key](https://ai.google.dev/) (gratuita)
+  - [Google AI API Key](https://ai.google.dev/) (pago)
 
 #### **Passos:**
 ```bash
