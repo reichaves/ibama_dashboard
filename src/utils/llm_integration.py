@@ -199,7 +199,7 @@ class LLMIntegration:
                     "Decreto 6.514/2008). Não tente consultar bancos de dados; use seu conhecimento.\n\n"
                     f"Pergunta: {question}"
                 )
-                answer = self.generate_analysis(conceptual_prompt, provider, temperature=0.3, max_tokens=800)
+                answer = self.generate_analysis(conceptual_prompt, provider, temperature=0.3, max_tokens=2000)
                 return {
                     "answer": answer,
                     "source": "llm",
