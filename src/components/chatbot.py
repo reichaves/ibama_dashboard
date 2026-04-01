@@ -564,7 +564,7 @@ class ChatbotFixed:
             answer += f"**Dados incluem:**\n"
             answer += f"• {total_states} estados brasileiros\n"
             answer += f"• {total_municipalities:,} municípios afetados\n"
-            answer += f"• Período: 2024-2025\n"
+            answer += f"• Período: 2024-2026\n"
             answer += f"• Valores de multas, tipos de infração, gravidade\n\n"
             
             answer += f"**Posso ajudar com:**\n"
