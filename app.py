@@ -923,13 +923,13 @@ def main():
             index=0,
             format_func=lambda x: {
                 "groq": "🦙 Llama 3.1 70B (Groq) - Rápido",
-                "gemini": "💎 Gemini 1.5 Pro (Google) - Avançado"
+                "gemini": "💎 Gemini 2.5 Flash (Google) - Avançado"
             }.get(x, x),
             help="Escolha o modelo de IA para geração de SQL e análises"
         )
-        
+
         # Recomendações de uso
-        st.info("💡 **Recomendação:** É recomendado usar o Llama para perguntas simples no Chatbot. Para mais análise e perguntas complexas selecione Gemini 1.5 Pro")
+        st.info("💡 **Recomendação:** É recomendado usar o Llama para perguntas simples no Chatbot. Para mais análise e perguntas complexas selecione Gemini 2.5 Flash")
         
         # Configurações avançadas do LLM (opcional)
         with st.expander("⚙️ Configurações Avançadas"):
@@ -955,7 +955,7 @@ def main():
             if llm_provider == "groq":
                 st.info("🦙 **Llama 3.1 70B:** Modelo open-source rápido e eficiente para análise de dados. Ideal para perguntas diretas e consultas simples.")
             else:
-                st.info("💎 **Gemini 1.5 Pro:** Modelo avançado do Google com melhor compreensão de contexto. Recomendado para análises complexas e textos elaborados.")
+                st.info("💎 **Gemini 2.5 Flash:** Modelo avançado do Google com melhor compreensão de contexto. Recomendado para análises complexas e textos elaborados.")
         
         # Status das APIs
         st.subheader("📡 Status das APIs")
