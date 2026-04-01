@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import re
 from typing import Dict, Any, Optional
 from fuzzywuzzy import process
-import re
 
 class ChatbotFixed:
     def __init__(self, llm_integration=None):
@@ -129,62 +129,218 @@ class ChatbotFixed:
             unique_names = df['NOME_INFRATOR'].dropna().unique()
             return [name for name in unique_names if search_lower in name.lower()][:5]
     
+    def _parse_question(self, question: str) -> dict:
+        """Extrai intent e filtros da pergunta usando regex e mapeamento semântico."""
+        q = question.lower()
+
+        # Anos (ex: 2024, 2025, 2026)
+        years = [int(y) for y in re.findall(r'\b(202[0-9])\b', question)]
+
+        # Tipos de infração
+        tipo_map = {
+            "flora": "Flora", "fauna": "Fauna", "pesca": "Pesca",
+            "administrativ": "Administrativo", "uso nocivo": "Uso Nocivo",
+            "mineração": "Mineração", "mineracao": "Mineração",
+        }
+        tipos = [v for k, v in tipo_map.items() if k in q]
+
+        # Estados (nome completo ou sigla como palavra inteira)
+        uf_map = {
+            "acre": "AC", "alagoas": "AL", "amapá": "AP", "amapa": "AP",
+            "amazonas": "AM", "bahia": "BA", "ceará": "CE", "ceara": "CE",
+            "distrito federal": "DF", "espírito santo": "ES", "espirito santo": "ES",
+            "goiás": "GO", "goias": "GO", "maranhão": "MA", "maranhao": "MA",
+            "mato grosso do sul": "MS", "mato grosso": "MT",
+            "minas gerais": "MG", "pará": "PA", "para": "PA", "paraíba": "PB",
+            "paraiba": "PB", "paraná": "PR", "parana": "PR",
+            "pernambuco": "PE", "piauí": "PI", "piaui": "PI",
+            "rio de janeiro": "RJ", "rio grande do norte": "RN",
+            "rio grande do sul": "RS", "rondônia": "RO", "rondonia": "RO",
+            "roraima": "RR", "santa catarina": "SC", "são paulo": "SP",
+            "sao paulo": "SP", "sergipe": "SE", "tocantins": "TO",
+        }
+        ufs = []
+        for name, code in uf_map.items():
+            if name in q and code not in ufs:
+                ufs.append(code)
+        # Siglas isoladas (ex: "no PA", "em SP")
+        for code in ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MS","MT",
+                     "MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"]:
+            if re.search(r'\b' + code + r'\b', question) and code not in ufs:
+                ufs.append(code)
+
+        # Gravidades
+        gravidades = []
+        if "baixa" in q: gravidades.append("Baixa")
+        if "média" in q or "media" in q: gravidades.append("Média")
+        if "alta" in q: gravidades.append("Alta")
+
+        # Tipo de documento/pessoa
+        doc_type = None
+        if "empresas" in q or "cnpj" in q: doc_type = "CNPJ"
+        elif any(k in q for k in ["pessoas", "cpf", "pessoa física", "pessoa fisica", "pessoa natural"]): doc_type = "CPF"
+
+        # Intent (ordem: mais específico primeiro)
+        intent = "general"
+        if self._is_specific_name_search(question):
+            intent = "specific_name"
+        elif any(k in q for k in ["por tipo", "tipos de infra", "dividido por tipo", "valor por tipo", "distribuição por tipo"]):
+            intent = "type_distribution"
+        elif any(k in q for k in ["gravidade", "por gravidade", "distribuição por gravidade"]):
+            intent = "gravity_distribution"
+        elif any(k in q for k in ["infratores", "maiores infratores", "quais infratores", "mais multas", "soma de valores"]):
+            intent = "top_offenders"
+        elif any(k in q for k in ["municípios", "cidades", "município", "municipios"]):
+            intent = "top_municipalities"
+        elif any(k in q for k in ["estados", "por uf", "por estado", "top estados"]):
+            intent = "top_states"
+        elif any(k in q for k in ["valor total", "soma de valor", "soma dos valor", "quanto em multas", "total em multas", "total de multas"]):
+            intent = "sum_value"
+        elif any(k in q for k in ["quantas", "quantos", "número de infra", "total de infra", "conte", "count"]):
+            intent = "count"
+        elif any(k in q for k in ["soma", "valores", "multas totais"]) and "tipo" in q:
+            intent = "type_distribution"
+        elif any(k in q for k in ["total", "resumo", "visão geral", "visao geral"]):
+            intent = "count"
+
+        return {
+            "intent": intent,
+            "filters": {"years": years, "ufs": ufs, "tipos": tipos,
+                        "gravidades": gravidades, "doc_type": doc_type},
+        }
+
+    def _apply_filters(self, df: pd.DataFrame, filters: dict) -> pd.DataFrame:
+        """Aplica todos os filtros extraídos da pergunta ao DataFrame."""
+        df_f = df.copy()
+
+        if filters.get("years") and 'DAT_HORA_AUTO_INFRACAO' in df_f.columns:
+            try:
+                years_col = pd.to_datetime(df_f['DAT_HORA_AUTO_INFRACAO'], errors='coerce').dt.year
+                df_f = df_f[years_col.isin(filters["years"])]
+            except Exception:
+                pass
+
+        if filters.get("tipos") and 'TIPO_INFRACAO' in df_f.columns:
+            tipos_lower = [t.lower() for t in filters["tipos"]]
+            df_f = df_f[df_f['TIPO_INFRACAO'].astype(str).str.lower().isin(tipos_lower)]
+
+        if filters.get("ufs") and 'UF' in df_f.columns:
+            df_f = df_f[df_f['UF'].isin(filters["ufs"])]
+
+        if filters.get("gravidades") and 'GRAVIDADE_INFRACAO' in df_f.columns:
+            df_f = df_f[df_f['GRAVIDADE_INFRACAO'].isin(filters["gravidades"])]
+
+        if filters.get("doc_type") and 'DOC_TYPE' in df_f.columns:
+            df_f = df_f[df_f['DOC_TYPE'] == filters["doc_type"]]
+
+        return df_f
+
+    def _build_filter_description(self, filters: dict) -> str:
+        """Gera descrição legível dos filtros ativos."""
+        parts = []
+        if filters.get("years"):
+            parts.append(f"Ano(s): {', '.join(map(str, filters['years']))}")
+        if filters.get("tipos"):
+            parts.append(f"Tipo: {', '.join(filters['tipos'])}")
+        if filters.get("ufs"):
+            parts.append(f"UF: {', '.join(filters['ufs'])}")
+        if filters.get("gravidades"):
+            parts.append(f"Gravidade: {', '.join(filters['gravidades'])}")
+        if filters.get("doc_type"):
+            label = "Empresas (CNPJ)" if filters["doc_type"] == "CNPJ" else "Pessoas Físicas (CPF)"
+            parts.append(f"Infrator: {label}")
+        return " | ".join(parts) if parts else "Todos os dados"
+
+    def _intent_count(self, df: pd.DataFrame, filter_desc: str) -> Dict[str, Any]:
+        """Conta infrações com os filtros aplicados."""
+        count = len(df)
+        if count == 0:
+            return {"answer": f"❌ Nenhuma infração encontrada para: **{filter_desc}**", "source": "data_analysis"}
+
+        answer = f"**📊 Contagem de Infrações**\n\n"
+        answer += f"**Filtros:** {filter_desc}\n\n"
+        answer += f"**Total:** {count:,} infrações\n"
+        if 'UF' in df.columns:
+            answer += f"**Estados:** {df['UF'].nunique()} diferentes\n"
+        if 'MUNICIPIO' in df.columns:
+            answer += f"**Municípios:** {df['MUNICIPIO'].nunique():,} diferentes\n"
+        if 'VAL_AUTO_INFRACAO_NUMERIC' in df.columns:
+            total_val = df['VAL_AUTO_INFRACAO_NUMERIC'].sum()
+            if total_val > 0:
+                answer += f"**Valor total de multas:** {self._format_currency_brazilian(total_val)}\n"
+        return {"answer": answer, "source": "data_analysis"}
+
+    def _intent_sum_value(self, df: pd.DataFrame, filter_desc: str) -> Dict[str, Any]:
+        """Soma valores de multas com os filtros aplicados."""
+        if 'VAL_AUTO_INFRACAO_NUMERIC' not in df.columns:
+            return {"answer": "❌ Dados de valores não disponíveis.", "source": "error"}
+        df_val = df[df['VAL_AUTO_INFRACAO_NUMERIC'].notna() & (df['VAL_AUTO_INFRACAO_NUMERIC'] > 0)]
+        if df_val.empty:
+            return {"answer": f"❌ Nenhum valor encontrado para: **{filter_desc}**", "source": "data_analysis"}
+
+        total = df_val['VAL_AUTO_INFRACAO_NUMERIC'].sum()
+        count = len(df_val)
+        answer = f"**💰 Valor Total de Multas**\n\n"
+        answer += f"**Filtros:** {filter_desc}\n\n"
+        answer += f"**Valor total:** {self._format_currency_brazilian(total)}\n"
+        answer += f"**Infrações com valor:** {count:,}\n"
+        answer += f"**Valor médio por infração:** {self._format_currency_brazilian(total / count)}\n"
+        return {"answer": answer, "source": "data_analysis"}
+
     def _answer_with_data_analysis(self, question: str) -> Dict[str, Any]:
-        """Responde perguntas usando análise CORRETA dos dados."""
-        question_lower = question.lower()
-        
+        """Responde perguntas usando parser de intenção + filtros combinados."""
         df = self._get_cached_data()
-        
         if df.empty:
-            return {
-                "answer": "❌ Não foi possível carregar os dados para análise.",
-                "source": "error"
-            }
-        
+            return {"answer": "❌ Não foi possível carregar os dados para análise.", "source": "error"}
+
         try:
-            # CORREÇÃO 1: Análise de valores por tipo de infração
-            if any(keyword in question_lower for keyword in ["valor total", "valores", "soma"]) and "tipo" in question_lower:
+            parsed = self._parse_question(question)
+            filters = parsed["filters"]
+            intent = parsed["intent"]
+            has_filters = any([filters["years"], filters["ufs"], filters["tipos"],
+                               filters["gravidades"], filters["doc_type"]])
+
+            df_filtered = self._apply_filters(df, filters)
+            filter_desc = self._build_filter_description(filters)
+
+            if intent == "count":
+                return self._intent_count(df_filtered, filter_desc)
+
+            elif intent == "sum_value":
+                if has_filters:
+                    return self._intent_sum_value(df_filtered, filter_desc)
                 return self._analyze_values_by_type_corrected(df, question)
-            
-            # CORREÇÃO 2: Análise por gravidade (incluindo sem avaliação)
-            elif any(keyword in question_lower for keyword in ["gravidade", "soma", "distribuição"]) and "gravidade" in question_lower:
-                return self._analyze_by_gravity_corrected(df, question)
-            
-            # CORREÇÃO 3: Top infratores por valor (não por quantidade)
-            elif any(keyword in question_lower for keyword in ["infratores", "multas", "soma de valores", "mais multas"]):
-                if "pessoas" in question_lower or "cpf" in question_lower:
-                    return self._analyze_top_individuals_by_value(df, question)
-                elif "empresas" in question_lower or "cnpj" in question_lower:
-                    return self._analyze_top_companies_by_value(df, question)
-                else:
-                    return self._analyze_top_offenders_by_value(df, question)
-            
-            # CORREÇÃO 4: Busca específica por empresa/pessoa
-            elif self._is_specific_name_search(question):
+
+            elif intent == "type_distribution":
+                return self._analyze_values_by_type_corrected(df_filtered, question)
+
+            elif intent == "gravity_distribution":
+                return self._analyze_by_gravity_corrected(df_filtered, question)
+
+            elif intent == "top_offenders":
+                if filters["doc_type"] == "CPF":
+                    return self._analyze_top_individuals_by_value(df_filtered, question)
+                elif filters["doc_type"] == "CNPJ":
+                    return self._analyze_top_companies_by_value(df_filtered, question)
+                return self._analyze_top_offenders_by_value(df_filtered, question)
+
+            elif intent == "top_states":
+                return self._analyze_top_states(df_filtered, question)
+
+            elif intent == "top_municipalities":
+                return self._analyze_top_municipalities(df_filtered, question)
+
+            elif intent == "specific_name":
                 return self._analyze_specific_offender_corrected(df, question)
-            
-            # CORREÇÃO 5: Análise geográfica específica
-            elif any(keyword in question_lower for keyword in ["pará", "pa"]) and "fauna" in question_lower:
-                return self._analyze_geographic_specific_corrected(df, question)
-            
-            # Métodos originais para outras perguntas
-            elif any(keyword in question_lower for keyword in ["estados", "uf", "top estados"]):
-                return self._analyze_top_states(df, question)
-            
-            elif any(keyword in question_lower for keyword in ["municípios", "cidades"]):
-                return self._analyze_top_municipalities(df, question)
-            
-            elif any(keyword in question_lower for keyword in ["total", "quantos"]):
-                return self._analyze_totals(df, question)
-            
+
             else:
+                # Fallback: se há filtros ativos, mostra contagem; senão, resumo geral
+                if has_filters:
+                    return self._intent_count(df_filtered, filter_desc)
                 return self._analyze_general(df, question)
-        
+
         except Exception as e:
-            return {
-                "answer": f"❌ Erro na análise: {str(e)}",
-                "source": "error"
-            }
+            return {"answer": f"❌ Erro na análise: {str(e)}", "source": "error"}
     
     def _analyze_values_by_type_corrected(self, df: pd.DataFrame, question: str) -> Dict[str, Any]:
         """CORREÇÃO: Análise correta de valores por tipo de infração."""
@@ -589,7 +745,7 @@ class ChatbotFixed:
         elif source == "knowledge_base":
             source_info = "\n\n*📚 Resposta baseada em conhecimento especializado*"
         elif source == "llm":
-            model_name = "Llama 3.1" if self.llm_config["provider"] == "groq" else "Gemini 1.5"
+            model_name = "Llama 3.1" if self.llm_config["provider"] == "groq" else "Gemini 2.5 Flash"
             source_info = f"\n\n*🤖 Resposta gerada por {model_name}*"
         else:
             source_info = ""
@@ -637,7 +793,7 @@ class ChatbotFixed:
         
         with col2:
             model_emoji = "🦙" if self.llm_config["provider"] == "groq" else "💎"
-            model_name = "Llama 3.1" if self.llm_config["provider"] == "groq" else "Gemini 1.5"
+            model_name = "Llama 3.1" if self.llm_config["provider"] == "groq" else "Gemini 2.5 Flash"
             st.caption(f"{model_emoji} Usando: {model_name}")
         
         with col3:
@@ -686,15 +842,16 @@ class ChatbotFixed:
         """Exibe perguntas de exemplo CORRIGIDAS."""
         with st.expander("💡 Perguntas de Exemplo (CORRIGIDAS)"):
             
-            st.write("**📊 Análises Corrigidas:**")
+            st.write("**📊 Análises por filtros:**")
             corrected_questions = [
+                "Quantas infrações contra a flora existiram em 2026?",
+                "Quantas infrações de fauna houve no Pará em 2025?",
+                "Qual o valor total das multas de flora em 2024?",
                 "Qual o valor total de infrações dividido por tipos de infrações?",
-                "Qual a soma de infrações dividida pela gravidade de infrações?", 
+                "Qual a distribuição por gravidade de infrações?",
                 "Quais os infratores com mais multas em soma de valores?",
-                "Quais os infratores do tipo pessoas com mais multas em soma de valores?",
-                "Quais os infratores do tipo empresas com mais multas em soma de valores?",
-                "Quais os infratores do tipo empresas com mais multas no Pará pelo tipo de infração contra a Fauna? Mostre a soma de valores",
-                "A Shell Brasil Petrleo Ltda tem infrações de que tipo?"
+                "Quais os infratores do tipo empresas com mais multas no Pará pela fauna?",
+                "Top 10 estados com mais infrações em 2026",
             ]
             
             for question in corrected_questions:
