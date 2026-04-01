@@ -188,9 +188,25 @@ class LLMIntegration:
             Dict com resposta, fonte e informações de debug
         """
         tool_choice = self._decide_tool(question)
-        
+
         try:
-            if tool_choice == 'internet':
+            if tool_choice == 'llm':
+                # Pergunta conceitual/explicativa — responde com conhecimento do LLM
+                conceptual_prompt = (
+                    "Você é um assistente especializado em fiscalização ambiental brasileira e na legislação do IBAMA. "
+                    "Responda a pergunta a seguir de forma clara e objetiva em português. "
+                    "Quando relevante, mencione a legislação brasileira pertinente (ex: Lei de Crimes Ambientais n° 9.605/1998, "
+                    "Decreto 6.514/2008). Não tente consultar bancos de dados; use seu conhecimento.\n\n"
+                    f"Pergunta: {question}"
+                )
+                answer = self.generate_analysis(conceptual_prompt, provider, temperature=0.3, max_tokens=800)
+                return {
+                    "answer": answer,
+                    "source": "llm",
+                    "provider": provider
+                }
+
+            elif tool_choice == 'internet':
                 # Busca na internet para perguntas conceituais
                 try:
                     search_result = search_internet(question)
@@ -412,40 +428,52 @@ class LLMIntegration:
         except Exception as e:
             return f"Erro ao formatar resultados: {str(e)}"
 
-    def _decide_tool(self, question: str) -> Literal['database', 'internet']:
+    def _decide_tool(self, question: str) -> Literal['database', 'internet', 'llm']:
         """
         Decide qual ferramenta usar baseado na pergunta.
-        
+
         Args:
             question: Pergunta do usuário
-            
+
         Returns:
-            str: 'database' ou 'internet'
+            str: 'database', 'internet' ou 'llm'
         """
         question_lower = question.lower()
-        
-        # Palavras-chave que indicam busca na internet
-        web_keywords = [
-            "endereço", "o que é", "significado de", "site oficial", 
-            "telefone", "contato", "história", "quem é o presidente", 
-            "localização", "site", "como funciona", "definição"
+
+        # Palavras-chave que indicam pergunta conceitual/explicativa → resposta direta do LLM
+        conceptual_keywords = [
+            "o que são", "o que é", "o que significa", "significado de",
+            "definição de", "explique", "explica", "como funciona",
+            "me explique", "me fale sobre", "o que representa",
+            "quais são os tipos de", "como é definido", "o que caracteriza"
         ]
-        
+
+        # Palavras-chave que indicam busca na internet (dados externos ao sistema)
+        web_keywords = [
+            "endereço", "site oficial", "telefone", "contato",
+            "história", "quem é o presidente", "localização", "site"
+        ]
+
         # Palavras-chave que indicam consulta ao banco
         database_keywords = [
             "quantos", "quais", "top", "ranking", "maior", "menor",
             "total", "soma", "média", "count", "estados", "uf",
-            "municípios", "infrações", "multas", "valores", "dados"
+            "municípios", "multas", "valores", "dados", "liste",
+            "mostre", "filtre", "calcule"
         ]
-        
+
+        # Perguntas conceituais têm prioridade — respondem com conhecimento do LLM
+        if any(keyword in question_lower for keyword in conceptual_keywords):
+            return 'llm'
+
         # Verifica se tem indicadores claros de busca web
         if any(keyword in question_lower for keyword in web_keywords):
             return 'internet'
-        
+
         # Verifica se tem indicadores claros de consulta banco
         if any(keyword in question_lower for keyword in database_keywords):
             return 'database'
-        
+
         # Default: assume que é consulta ao banco (mais comum)
         return 'database'
 
