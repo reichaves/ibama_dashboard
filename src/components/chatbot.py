@@ -750,6 +750,9 @@ class ChatbotFixed:
         else:
             source_info = ""
         
+        # Avoid duplicate warning if LLM already appended it
+        if "⚠️ **Aviso Importante:**" in answer:
+            return answer + source_info
         return answer + source_info + warning
     
     def query(self, question: str, provider: str = 'direct') -> Dict[str, Any]:
