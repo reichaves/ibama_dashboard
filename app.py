@@ -95,23 +95,27 @@ def create_simple_year_filter():
     st.write("**Selecione os anos:**")
     
     # Checkboxes para anos disponíveis
-    col1, col2 = st.columns(2)
-    
+    col1, col2, col3 = st.columns(3)
+
     with col1:
         year_2024 = st.checkbox("2024", value=True, key="year_2024")
     with col2:
         year_2025 = st.checkbox("2025", value=True, key="year_2025")
-    
+    with col3:
+        year_2026 = st.checkbox("2026", value=True, key="year_2026")
+
     # Valida seleção
     selected_years = []
     if year_2024:
         selected_years.append(2024)
     if year_2025:
         selected_years.append(2025)
-    
+    if year_2026:
+        selected_years.append(2026)
+
     if not selected_years:
         st.warning("⚠️ Selecione pelo menos um ano!")
-        selected_years = [2024, 2025]  # Default
+        selected_years = [2024, 2025, 2026]  # Default
     
     # Retorna filtros no formato esperado pelo sistema
     return {
@@ -154,16 +158,16 @@ def create_advanced_month_filter():
     # Filtros para 2025
     with st.expander("📅 2025", expanded=True):
         col1, col2 = st.columns([1, 3])
-        
+
         with col1:
             include_2025 = st.checkbox("Incluir 2025", value=True, key="include_2025")
-        
+
         with col2:
             if include_2025:
-                # Para 2025, limita aos meses já passados (assumindo que estamos em 2025)
+                current_year = datetime.now().year
                 current_month = datetime.now().month
-                available_months_2025 = list(range(1, min(13, current_month + 2)))  # +1 para incluir mês atual
-                
+                available_months_2025 = list(range(1, 13)) if current_year > 2025 else list(range(1, min(13, current_month + 2)))
+
                 months_2025 = st.multiselect(
                     "Meses de 2025:",
                     options=available_months_2025,
@@ -176,11 +180,37 @@ def create_advanced_month_filter():
                 )
                 if months_2025:
                     selected_periods[2025] = months_2025
-    
+
+    # Filtros para 2026
+    with st.expander("📅 2026", expanded=True):
+        col1, col2 = st.columns([1, 3])
+
+        with col1:
+            include_2026 = st.checkbox("Incluir 2026", value=True, key="include_2026")
+
+        with col2:
+            if include_2026:
+                current_year = datetime.now().year
+                current_month = datetime.now().month
+                available_months_2026 = list(range(1, 13)) if current_year > 2026 else list(range(1, min(13, current_month + 2)))
+
+                months_2026 = st.multiselect(
+                    "Meses de 2026:",
+                    options=available_months_2026,
+                    default=available_months_2026,
+                    format_func=lambda x: [
+                        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+                    ][x-1],
+                    key="months_2026"
+                )
+                if months_2026:
+                    selected_periods[2026] = months_2026
+
     # Valida seleção
     if not selected_periods:
         st.warning("⚠️ Selecione pelo menos um período!")
-        selected_periods = {2024: list(range(1, 13)), 2025: list(range(1, 8))}  # Default
+        selected_periods = {2024: list(range(1, 13)), 2025: list(range(1, 13)), 2026: list(range(1, 4))}  # Default
     
     # Retorna filtros
     return {
@@ -804,9 +834,9 @@ def main():
             
             date_filters = {
                 "mode": "simple",
-                "years": [2024, 2025],
-                "year_range": (2024, 2025),
-                "description": "2024, 2025 (padrão)"
+                "years": [2024, 2025, 2026],
+                "year_range": (2024, 2026),
+                "description": "2024, 2025, 2026 (padrão)"
             }
 
         # Info sobre filtros aplicados
