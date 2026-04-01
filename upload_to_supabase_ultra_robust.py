@@ -104,11 +104,11 @@ def process_ibama_data():
     with zipfile.ZipFile(BytesIO(content)) as zip_file:
         csv_files = [f for f in zip_file.namelist() if f.endswith('.csv')]
         
-        # Foca em 2024-2025
-        target_files = [f for f in csv_files if any(year in f for year in ['2024', '2025'])]
-        
+        # Foca em 2024-2026
+        target_files = [f for f in csv_files if any(year in f for year in ['2024', '2025', '2026'])]
+
         if not target_files:
-            target_files = sorted(csv_files, reverse=True)[:2]
+            target_files = sorted(csv_files, reverse=True)[:3]
         
         print(f"📄 Processando {len(target_files)} arquivos")
         
