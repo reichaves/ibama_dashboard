@@ -14,7 +14,7 @@ class DataLoader:
         
     def download_and_process(self):
         """
-        Download and process data, but ONLY for the years 2024 and 2025.
+        Download and process data, but ONLY for the years 2024, 2025 and 2026.
         """
         if not self.zip_url:
             print("Erro: A URL do ZIP não foi definida.")
@@ -34,7 +34,8 @@ class DataLoader:
             # --- ALTERAÇÃO AQUI: Definindo os arquivos alvo ---
             target_files = [
                 "auto_infracao_ano_2024.csv",
-                "auto_infracao_ano_2025.csv"
+                "auto_infracao_ano_2025.csv",
+                "auto_infracao_ano_2026.csv"
             ]
             print(f"Filtro aplicado: Processando apenas os arquivos {target_files}")
 
@@ -58,11 +59,11 @@ class DataLoader:
                         print(f"  Erro ao processar o arquivo {filename}: {e}")
             
             if not all_data:
-                print("Nenhum dado dos anos 2024 ou 2025 foi encontrado ou pôde ser extraído.")
+                print("Nenhum dado dos anos 2024, 2025 ou 2026 foi encontrado ou pôde ser extraído.")
                 return False
                 
             combined_df = pd.concat(all_data, ignore_index=True)
-            print(f"Total de registros combinados (2024-2025): {len(combined_df)}")
+            print(f"Total de registros combinados (2024-2026): {len(combined_df)}")
             
             if self.database:
                 self.database.save_dataframe(combined_df, "ibama_infracao")
