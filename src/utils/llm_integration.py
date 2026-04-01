@@ -26,7 +26,7 @@ class LLMIntegration:
         self.groq_client = None
         self.gemini_model = None
         self.groq_model_name = "llama-3.1-70b-versatile"
-        self.gemini_model_name = "gemini-1.5-pro"
+        self.gemini_model_name = "gemini-2.5-flash"
 
         # Configuração do Groq (Llama 3.1)
         groq_api_key = config.get_secret('GROQ_API_KEY')
