@@ -834,7 +834,7 @@ class DataVisualization:
             if date_filters is None:
                 date_filters = {
                     "mode": "simple",
-                    "years": [2024, 2025],
+                    "years": [2024, 2025, 2026],
                     "description": "Todos os dados desta sessão"
                 }
             
