@@ -140,8 +140,8 @@ def test_visualization():
         # Teste de qualidade dos dados
         date_filters = {
             "mode": "simple",
-            "years": [2024, 2025],
-            "description": "2024-2025"
+            "years": [2024, 2025, 2026],
+            "description": "2024-2026"
         }
         
         quality_info = viz.get_data_quality_info([], date_filters)
