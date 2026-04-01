@@ -115,14 +115,14 @@ def download_and_process_data():
         print(f"Dados carregados. Shape: {df.shape}")
         print(f"Colunas: {list(df.columns)}")
         
-        # Filtra dados dos últimos 2 anos (2024-2025)
+        # Filtra dados dos últimos 3 anos (2024-2026)
         if 'DAT_HORA_AUTO_INFRACAO' in df.columns:
             # Converte a coluna de data
             df['DAT_HORA_AUTO_INFRACAO'] = pd.to_datetime(df['DAT_HORA_AUTO_INFRACAO'], errors='coerce')
-            
-            # Filtra pelos anos 2024 e 2025
-            df = df[df['DAT_HORA_AUTO_INFRACAO'].dt.year.isin([2024, 2025])]
-            print(f"Dados filtrados (2024-2025). Shape final: {df.shape}")
+
+            # Filtra pelos anos 2024, 2025 e 2026
+            df = df[df['DAT_HORA_AUTO_INFRACAO'].dt.year.isin([2024, 2025, 2026])]
+            print(f"Dados filtrados (2024-2026). Shape final: {df.shape}")
         
         # Remove valores NaN que podem causar problemas no JSON
         df = df.fillna('')
