@@ -327,14 +327,14 @@ def download_and_process_data(supabase_columns: set):
             
             print(f"📄 Total de arquivos CSV: {len(csv_files)}")
             
-            # Busca arquivos 2024-2025
-            target_files = [f for f in csv_files if any(year in f for year in ['2024', '2025'])]
-            
+            # Busca arquivos 2024-2026
+            target_files = [f for f in csv_files if any(year in f for year in ['2024', '2025', '2026'])]
+
             if target_files:
-                print(f"🎯 Arquivos encontrados (2024-2025): {target_files}")
+                print(f"🎯 Arquivos encontrados (2024-2026): {target_files}")
                 files_to_process = target_files
             else:
-                print("⚠️ Arquivos 2024-2025 não encontrados. Usando os mais recentes...")
+                print("⚠️ Arquivos 2024-2026 não encontrados. Usando os mais recentes...")
                 files_to_process = sorted(csv_files, reverse=True)[:5]
             
             # Processa arquivos
