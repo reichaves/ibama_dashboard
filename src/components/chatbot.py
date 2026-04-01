@@ -757,6 +757,25 @@ class ChatbotFixed:
         
         question_lower = question.lower()
         
+        # Palavras-chave que indicam perguntas conceituais/explicativas — prioridade para LLM
+        conceptual_keywords = [
+            "o que são", "o que é", "o que significa", "significado de",
+            "definição de", "explique", "explica", "como funciona",
+            "me explique", "me fale sobre", "o que representa",
+            "quais são os tipos de", "como é definido", "o que caracteriza"
+        ]
+
+        # Perguntas conceituais têm prioridade — não devem ir para análise de dados
+        if any(keyword in question_lower for keyword in conceptual_keywords):
+            if self.llm_integration:
+                try:
+                    return self.llm_integration.query(question, self.llm_config["provider"])
+                except Exception as e:
+                    return {
+                        "answer": f"❌ Análise não disponível: {str(e)}",
+                        "source": "error"
+                    }
+
         # Palavras-chave que indicam perguntas sobre dados
         data_keywords = [
             "valor total", "soma", "valores", "tipo", "infração", "gravidade",
@@ -764,7 +783,7 @@ class ChatbotFixed:
             "shell", "petrobras", "vale", "pará", "fauna", "flora",
             "estados", "uf", "municípios", "total", "quantos", "top"
         ]
-        
+
         # Para perguntas sobre dados, usa análise local CORRIGIDA
         if any(keyword in question_lower for keyword in data_keywords):
             return self._answer_with_data_analysis(question)
